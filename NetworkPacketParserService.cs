@@ -1,20 +1,19 @@
-using CapturingAndParsingPackets;
 using PacketDotNet;
-using PacketDotNet.Utils;
 using SharpPcap;
 using SharpPcap.LibPcap;
-using System.Net.NetworkInformation;
 
 public sealed class NetworkPacketParserService : BackgroundService
 {
 
-    private LibPcapLiveDevice _defaultGatewayDevice;
+    private readonly PacketParserService _parser;
+    private readonly LibPcapLiveDevice _defaultGatewayDevice;
     private Dictionary<string, int> _ipTable;
 
-    public NetworkPacketParserService()
+    public NetworkPacketParserService(PacketParserService packetParserService)
     {
         var devices = LibPcapLiveDeviceList.Instance;
         _defaultGatewayDevice = devices[0];
+        _parser = packetParserService;
         _ipTable = new Dictionary<string, int>();
     }
 
@@ -22,7 +21,35 @@ public sealed class NetworkPacketParserService : BackgroundService
     {
         var rawCapture = packetCapture.GetPacket();
         var p = Packet.ParsePacket(rawCapture.LinkLayerType, rawCapture.Data);
-        Console.WriteLine(p.ToString(StringOutputType.Normal));
+        var packetInfo = p.ToString(StringOutputType.Normal);
+        var sourceIP = _parser.GetSourceIP(packetInfo) != null ? _parser.GetSourceIP(packetInfo) : "NOT FOUND";
+        if (sourceIP is not null) TrackIP(sourceIP);
+        Console.WriteLine(sourceIP);
+    }
+
+    public void TrackIP(string ipAddress)
+    {
+        if (_ipTable.TryGetValue(ipAddress, out int count)) _ipTable[ipAddress] = count + 1;
+        else _ipTable[ipAddress] = 1;
+        saveReportToFile();
+    }
+
+    public void saveReportToFile()
+    {
+        try
+        {
+            using (StreamWriter writer = File.CreateText("resume.txt"))
+            {
+                foreach (KeyValuePair<string, int> item in _ipTable)
+                {
+                    writer.WriteLine($"{item.Key}: {item.Value},");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR Writing File: {ex.Message}");
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,5 +62,7 @@ public sealed class NetworkPacketParserService : BackgroundService
         {
             await Task.Delay(1_000, stoppingToken);
         }
+
+        saveReportToFile();
     }
 }
