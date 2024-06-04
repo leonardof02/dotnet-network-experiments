@@ -58,7 +58,17 @@ public sealed class NetworkPacketAnalyzer : BackgroundService
 
     public void LogToFilePacketCounter()
     {
-        
+        using (StreamWriter writer = new StreamWriter("resume.txt"))
+        {
+            writer.WriteLine("NETWORK Protocol Resume=============");
+            writer.WriteLine($"No Ethernet: {_protocolCounter.NoEthernet}");
+            writer.WriteLine($"Ethernet: {_protocolCounter.Ethernet}");
+            writer.WriteLine($"    IPv4: {_protocolCounter.IPv4}");
+            writer.WriteLine($"        TCP: {_protocolCounter.Tcp}");
+            writer.WriteLine($"        UDP: {_protocolCounter.Udp}");
+            writer.WriteLine($"        No TCP-UDP: {_protocolCounter.NoTcpUdp}");
+            writer.WriteLine($"    No IPv4: {_protocolCounter.NoIPv4}");
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -71,5 +81,11 @@ public sealed class NetworkPacketAnalyzer : BackgroundService
         {
             await Task.CompletedTask;
         }
+    }
+
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        LogToFilePacketCounter();
+        return Task.CompletedTask;
     }
 }
