@@ -1,6 +1,5 @@
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddSingleton<PacketParserService>();
-builder.Services.AddHostedService<NetworkPacketParserService>();
+builder.Services.AddHostedService<NetworkPacketAnalyzer>();
 
 var host = builder.Build();
 host.Run();
